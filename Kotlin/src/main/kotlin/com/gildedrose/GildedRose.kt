@@ -16,7 +16,10 @@ class GildedRose(var items: Array<Item>) {
         // Adds quality to item, then ensures MIN_QUALITY <= item.quality <= MAX_QUALITY
         // QualityChange is doubled if it is conjured and quality is decreasing
         // Also doubled if it is past the sell by date
-        val updatedQualityChange = qualityChange * (if (isConjured && qualityChange < 0) 2 else 1) * (if (item.sellIn < 0) 2 else 1)
+        var updatedQualityChange = qualityChange
+        if (isConjured && qualityChange < 0) updatedQualityChange *= 2
+        if (item.sellIn < 0) updatedQualityChange *= 2
+
         item.quality = max(min(item.quality + updatedQualityChange, MAX_QUALITY), MIN_QUALITY)
     }
 
@@ -41,23 +44,23 @@ class GildedRose(var items: Array<Item>) {
             val (itemName, isConjured) = getConjuredAndName(item.name)
 
             // Sulfuruas is never changed and should be skipped
-            if (itemName != SULFURAS_NAME) {
-                item.sellIn -= 1
+            if (itemName == SULFURAS_NAME) continue
 
-                when (itemName) {
-                    AGED_BRIE_NAME -> addQuality(item, isConjured, 1)
-                    BACKSTAGE_PASS_NAME ->
-                        // The legacy code functionality has been mimicked here
-                        // Check the range of sellIn before it has been decremented and update quality accordingly
-                        // The range has been adjusted to compensate for sellIn being decremented before
-                        when (item.sellIn) {
-                            in Int.MIN_VALUE..0 -> item.quality = 0
-                            in 0..4 -> addQuality(item, isConjured, 3)
-                            in 5..9 -> addQuality(item, isConjured, 2)
-                            else -> addQuality(item, isConjured, 1)
-                        }
-                    else -> addQuality(item, isConjured, -1)
-                }
+            item.sellIn -= 1
+
+            when (itemName) {
+                AGED_BRIE_NAME -> addQuality(item, isConjured, 1)
+                BACKSTAGE_PASS_NAME ->
+                    // The legacy code functionality has been mimicked here
+                    // Check the range of sellIn before it has been decremented and update quality accordingly
+                    // The range has been adjusted to compensate for sellIn being decremented before
+                    when (item.sellIn) {
+                        in Int.MIN_VALUE..0 -> item.quality = 0
+                        in 0..4 -> addQuality(item, isConjured, 3)
+                        in 5..9 -> addQuality(item, isConjured, 2)
+                        else -> addQuality(item, isConjured, 1)
+                    }
+                else -> addQuality(item, isConjured, -1)
             }
         }
     }
