@@ -47,7 +47,7 @@ class GildedRoseTest {
     }
 
     @Test
-    fun sellin_lowers_daily() {
+    fun sellin_lowers_by_one_daily() {
         val startSellin = 1
         val app = GetApp(Item("foo", startSellin, 10))
         app.updateQuality()
@@ -106,15 +106,13 @@ class GildedRoseTest {
         val startQuality = 10
         val app = GetApp(
                 Item(backstage_pass_name, 10, startQuality),
-                Item(backstage_pass_name, 5, startQuality),
-                Item(backstage_pass_name, 0, startQuality))
+                Item(backstage_pass_name, 5, startQuality))
+
         app.updateQuality()
-        assertTrue("Quality of $backstage_pass_name should increase by 2 with <=10 days left",
-                app.items[0].quality == startQuality + 2)
-        assertTrue("Quality of $backstage_pass_name should increase by 3 with <=10 days left",
-                app.items[1].quality == startQuality + 3)
-        assertTrue("Quality of $backstage_pass_name should drop to 0 after concert",
-                app.items[2].quality == 0)
+        // Quality of $backstage_pass_name should increase by 2 with <=10 days left
+        assertEquals(startQuality+2, app.items[0].quality)
+        // Quality of $backstage_pass_name should increase by 3 with <=5 days left
+        assertEquals(startQuality+3, app.items[1].quality)
     }
 
     @Test
@@ -122,8 +120,7 @@ class GildedRoseTest {
         val startQuality = 10
         val app = GetApp(Item(backstage_pass_name, 0, startQuality))
         app.updateQuality()
-        assertTrue("Quality of $backstage_pass_name should drop to 0 after concert",
-                app.items[0].quality == 0)
+        assertEquals(0, app.items[0].quality)
     }
 
     @Test
