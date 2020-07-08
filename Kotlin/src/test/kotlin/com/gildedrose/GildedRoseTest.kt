@@ -1,16 +1,15 @@
 package com.gildedrose
 
-import com.sun.corba.se.impl.resolver.BootstrapResolverImpl
 import org.junit.Assert.*
 import org.junit.Test
 
 class GildedRoseTest {
 
-    val aged_brie_name = "Aged Brie"
-    val sulfuras_name = "Sulfuras, Hand of Ragnaros"
-    val backstage_pass_name = "Backstage passes to a TAFKAL80ETC concert"
+    private val aged_brie_name = "Aged Brie"
+    private val sulfuras_name = "Sulfuras, Hand of Ragnaros"
+    private val backstage_pass_name = "Backstage passes to a TAFKAL80ETC concert"
 
-    fun GetApp(vararg items : Item): GildedRose {
+    private fun GetApp(vararg items : Item): GildedRose {
         return GildedRose(arrayOf(*items))
     }
 
@@ -31,7 +30,7 @@ class GildedRoseTest {
     }
 
     @Test
-    fun sellby_doubles_quality_loss() {
+    fun sellin_negative_doubles_quality_loss() {
         val startQuality = 10
         val app = GetApp(Item("foo", 1, startQuality))
         app.updateQuality()
@@ -42,11 +41,13 @@ class GildedRoseTest {
         val diff1 = startQuality - secondQuality
         val diff2 = secondQuality - finalQuality
 
-        assertTrue("Quality should double after sell-by date", diff1 * 2 == diff2)
+        assertTrue(diff1 * 2 == diff2) // Quality loss should double
+        // Using "assertTrue" rather than "assertEquals" because we don't know the "actual" value --
+        // we're just testing to make sure the values are equal.
     }
 
     @Test
-    fun sellby_lowers_daily() {
+    fun sellin_lowers_daily() {
         val startSellin = 1
         val app = GetApp(Item("foo", startSellin, 10))
         app.updateQuality()
@@ -54,36 +55,28 @@ class GildedRoseTest {
         app.updateQuality()
         val finalSellin = app.items[0].sellIn
 
-        assertTrue("SellIn should always decrease after updateQuality()",
-            startSellin == secondSellin + 1 &&
-            secondSellin == finalSellin + 1)
+        assertEquals(startSellin - 1, secondSellin)
+        assertEquals(secondSellin - 1, finalSellin)
     }
 
     @Test
     fun aged_brie_improves() {
         val startQuality = 10
-        val iters = 2
         val app = GetApp(Item(aged_brie_name, 50, startQuality))
 
-        for (i in 1..iters) {
-            val lastQuality = app.items[0].quality
-            assertTrue("Quality shouldn't reach 50 in this test", lastQuality < 50)
-            app.updateQuality()
-            assertTrue("Quality of $aged_brie_name should increase",
-                    app.items[0].quality > lastQuality)
-        }
+        app.updateQuality()
+        assertTrue("Quality of $aged_brie_name should increase",
+                app.items[0].quality > startQuality)
     }
 
     @Test
     fun quality_never_above_50() {
-        val startQuality = 49
-        val iters = 5
-        val app = GetApp(Item(aged_brie_name, 50, startQuality))
+        val startQualities = arrayOf(49, 50)
+        val startItems = startQualities.map {Item(aged_brie_name, 50, quality = it)}
+        val app = GetApp(*startItems.toTypedArray())
 
-        for (i in 1..iters) {
-            app.updateQuality()
-            assertTrue("Quality should be <= 50", app.items.all {it.quality <= 50})
-        }
+        app.updateQuality()
+        assertTrue("Quality should be <= 50", app.items.all {it.quality <= 50})
     }
 
     @Test
@@ -91,36 +84,28 @@ class GildedRoseTest {
         val startQuality = 25
         val startSellin = 3
 
-        val iters = 3
         val app = GetApp(Item(sulfuras_name, startSellin, startQuality))
 
-        for (i in 1..iters) {
-            app.updateQuality()
-            assertTrue("Sulfuras never has to be sold and never decreases in quality",
-                app.items[0].quality == startQuality &&
-                        app.items[0].sellIn == startSellin)
-        }
+        app.updateQuality()
+        assertEquals(startQuality, app.items[0].quality);
+        assertEquals(startSellin, app.items[0].sellIn);
     }
 
     @Test
     fun backstage_passes_improve() {
         val startQuality = 10
-        val iters = 2
         val app = GetApp(Item(backstage_pass_name, 50, startQuality))
 
-        for (i in 1..iters) {
-            val lastQuality = app.items[0].quality
-            assertTrue("Quality shouldn't reach 50 in this test", lastQuality < 50)
-            app.updateQuality()
-            assertTrue("Quality of ${app.items[0].name} should increase",
-                    app.items[0].quality > lastQuality)
-        }
+        app.updateQuality()
+        assertTrue("Quality of ${app.items[0].name} should increase",
+                app.items[0].quality > startQuality)
     }
 
     @Test
-    fun backstage_passes_improve_more() {
+    fun backstage_passes_improve_more_as_deadline_approaches() {
         val startQuality = 10
-        val app = GetApp(Item(backstage_pass_name, 10, startQuality),
+        val app = GetApp(
+                Item(backstage_pass_name, 10, startQuality),
                 Item(backstage_pass_name, 5, startQuality),
                 Item(backstage_pass_name, 0, startQuality))
         app.updateQuality()
@@ -133,7 +118,16 @@ class GildedRoseTest {
     }
 
     @Test
-    fun conjured_items_degrade_faster() {
+    fun backstage_passes_quality_zero_past_sellby() {
+        val startQuality = 10
+        val app = GetApp(Item(backstage_pass_name, 0, startQuality))
+        app.updateQuality()
+        assertTrue("Quality of $backstage_pass_name should drop to 0 after concert",
+                app.items[0].quality == 0)
+    }
+
+    @Test
+    fun conjured_items_degrade_twice_as_fast() {
         val startQuality = 10
         // Only want degrading itemNames
         for (itemName in arrayOf("foo", sulfuras_name)) {
@@ -149,39 +143,6 @@ class GildedRoseTest {
                     diffConjured == 2 * diffNormal)
         }
     }
-
-    @Test
-    fun test_same_as_legacy() {
-        // Want to test that backstage, brie, and other items `foo` all behave the same
-        // NOT TESTING "conjured" -- Doesn't exist in legacy code!!
-
-        val numItems = 10
-        val numItersEach = 10
-        val numItersTotal = 100
-        val itemNames = arrayOf(backstage_pass_name, aged_brie_name, sulfuras_name, "foo")
-
-        for (iter in 1..numItersTotal) {
-            val items = mutableListOf<Item>()
-            for (i in 1..numItems) {
-                items.add(
-                        Item(itemNames.random(), (1..numItersEach).random(), (1..49).random())
-                )
-            }
-            val thisApp = GildedRose(items.toTypedArray())
-            val referenceApp = GildedRoseLegacy(items.toTypedArray())
-
-            for (i in 1..numItersEach) {
-                thisApp.updateQuality()
-                referenceApp.updateQuality()
-                thisApp.items.zip(referenceApp.items) {
-                    thisItem, refItem -> assertTrue("$thisItem, $refItem should be equal",
-                        thisItem.quality == refItem.quality &&
-                        thisItem.sellIn == refItem.sellIn)
-                }
-            }
-        }
-    }
-
 }
 
 
